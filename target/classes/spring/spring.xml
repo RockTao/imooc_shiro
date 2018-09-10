@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd">
+
+ 	<import resource="spring-dao.xml" />
+ 	<import resource="spring-redis.xml" />
+	
+	<context:component-scan base-package="imooc.shiro.spring" />
+
+
+<!--创建  securityManager 对象-->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager"></property>
+		<property name="loginUrl" value="login.html"></property>
+		<property name="unauthorizedUrl" value="403.html"></property>
+		<property name="filterChainDefinitions">
+		<!-- 从上到新进行比配 -->
+			<value>
+				/login.html = anon  
+				/subLogin = anon
+				/testRole = roles["admin","admin1"]
+				/testRole1 = rolesOr["admin","admin1"]
+				/* = authc
+			</value>
+		</property>
+		<!--引入自定义filter   --> 
+		<property name="filters">
+			<map>
+				<entry key="rolesOr" value-ref="rolesOrFilter" />
+			</map>
+		</property>
+	</bean>
+	
+	<!-- 自定义filter -->
+ 	<bean id="rolesOrFilter" class="imooc.shiro.spring.filter.RolesOrFilter" />
+
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property  name="realm" ref="realm"></property>
+		<property  name="sessionManager" ref="sessionManager"></property>
+		<property  name="cacheManager" ref="cacheManager"></property>
+		<property  name="rememberMeManager" ref="cookieRememberMeManager"></property>
+	</bean>	
+	
+	<bean id="realm" class="imooc.shiro.spring.shiro.realm.CustomRealm">
+		<property name="credentialsMatcher" ref="credentialsMatcher" ></property>
+	</bean>
+	
+	<bean id="credentialsMatcher" class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+		<property name="hashAlgorithmName" value="md5" />
+		<property name="hashIterations" value="1" />
+	</bean>
+	
+	
+	<!-- 自定义的session管理器， -->
+	<bean class="imooc.shiro.spring.session.CustomSessionManager" id="sessionManager">
+		<property  name="sessionDAO" ref="redisSessionDao"/>
+	</bean>
+	<bean class="imooc.shiro.spring.session.RedisSessionDao" id="redisSessionDao"></bean>
+	
+
+<!--  缓存管理-->
+
+<bean class="imooc.shiro.spring.cache.RedisCacheManager" id="cacheManager"></bean>
+
+<!--  自动登录 -->
+<bean id="cookieRememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+		<property name="cookie" ref="simpleCookie"></property>
+</bean>
+
+	<bean  id="simpleCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+		<constructor-arg value="rememberMe"/>
+		<property name="maxAge" value="200000"></property>
+	</bean>
+
+
+</beans>
